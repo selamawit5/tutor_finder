@@ -1,15 +1,12 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tutor_finder/core/utils/initials.dart';
 import 'package:tutor_finder/features/tutors/presentation/tutors_provider.dart';
 import 'package:tutor_finder/features/reviews/presentation/reviews_provider.dart';
+
 class TutorProfileScreen extends ConsumerWidget {
-  const TutorProfileScreen({
-    super.key,
-    required this.tutorId,
-  });
+  const TutorProfileScreen({super.key, required this.tutorId});
 
   final String tutorId;
 
@@ -23,9 +20,7 @@ class TutorProfileScreen extends ConsumerWidget {
     if (tutor == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Tutor Profile')),
-        body: const Center(
-          child: Text('Tutor not found.'),
-        ),
+        body: const Center(child: Text('Tutor not found.')),
       );
     }
 
@@ -34,9 +29,7 @@ class TutorProfileScreen extends ConsumerWidget {
         .toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tutor Profile'),
-      ),
+      appBar: AppBar(title: const Text('Tutor Profile')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -109,10 +102,7 @@ class TutorProfileScreen extends ConsumerWidget {
 
           const SizedBox(height: 20),
 
-          Text(
-            'Education',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Education', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text('School: ${tutor.school}'),
           Text('Field of study: ${tutor.fieldOfStudy}'),
@@ -132,20 +122,13 @@ class TutorProfileScreen extends ConsumerWidget {
               spacing: 8,
               runSpacing: 8,
               children: tutorSubjects
-                  .map(
-                    (subject) => Chip(
-                      label: Text(subject.name),
-                    ),
-                  )
+                  .map((subject) => Chip(label: Text(subject.name)))
                   .toList(),
             ),
 
           const SizedBox(height: 20),
 
-          Text(
-            'Availability',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Availability', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
 
           if (tutor.availability.isEmpty)
@@ -167,12 +150,8 @@ class TutorProfileScreen extends ConsumerWidget {
           const SizedBox(height: 12),
 
           reviewsAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
-            error: (error, stack) => const Text(
-              'Could not load reviews.',
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stack) => const Text('Could not load reviews.'),
             data: (reviews) {
               if (reviews.isEmpty) {
                 return const Text('No reviews yet.');
@@ -191,11 +170,7 @@ class TutorProfileScreen extends ConsumerWidget {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                            size: 18,
-                          ),
+                          const Icon(Icons.star, color: Colors.amber, size: 18),
                           Text(review.rating.toString()),
                         ],
                       ),
@@ -238,14 +213,8 @@ class _InfoItem extends StatelessWidget {
       children: [
         Icon(icon),
         const SizedBox(height: 6),
-        Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        Text(
-          subtitle,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }

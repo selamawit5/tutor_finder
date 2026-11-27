@@ -10,14 +10,19 @@ class FindTutorsScreen extends ConsumerStatefulWidget {
   const FindTutorsScreen({super.key});
 
   @override
-  ConsumerState<FindTutorsScreen> createState() => _FindTutorsScreenState();
+  ConsumerState<FindTutorsScreen> createState() =>
+      _FindTutorsScreenState();
 }
 
 class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
-  // Starts from the saved query so the box matches the list when coming back.
-  late final _searchController = TextEditingController(
-    text: ref.read(tutorFilterProvider).searchQuery,
-  );
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    ref.read(tutorFilterProvider.notifier).setSearchQuery('');
+  }
 
   @override
   void dispose() {
@@ -55,10 +60,10 @@ class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
 
           // Search
           TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
-            },
+  controller: _searchController,
+  onChanged: (value) {
+    ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
+  },
             decoration: const InputDecoration(
               hintText: 'Search tutors or subjects...',
               prefixIcon: Icon(Icons.search),
@@ -179,9 +184,9 @@ class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
-                  _searchController.clear();
-                  ref.read(tutorFilterProvider.notifier).clear();
-                },
+  _searchController.clear();
+  ref.read(tutorFilterProvider.notifier).clear();
+},
                 icon: const Icon(Icons.filter_alt_off),
                 label: const Text('Clear filters'),
               ),
