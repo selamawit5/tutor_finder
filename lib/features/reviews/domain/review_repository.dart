@@ -19,4 +19,7 @@ abstract interface class ReviewRepository {
   /// Saves [review]. Throws [DuplicateReviewException] if its booking was
   /// already reviewed, and [ArgumentError] if the rating is not 1–5.
   Future<Review> addReview(Review review);
+
+  /// Removes the review with [reviewId]. Does nothing if it does not exist.
+  Future<void> deleteReview(String reviewId);
 }

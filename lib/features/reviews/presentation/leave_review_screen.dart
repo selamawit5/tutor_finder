@@ -103,6 +103,9 @@ class _ReviewForm extends ConsumerWidget {
     final theme = Theme.of(context);
     final form = ref.watch(reviewFormProvider(booking.id));
     final notifier = ref.read(reviewFormProvider(booking.id).notifier);
+    // Locked while saving, and once the review is stored (only a retry of
+    // the rating update is left), so the saved text cannot drift.
+    final isLocked = form.isSubmitting || form.needsRatingRetry;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -119,9 +122,7 @@ class _ReviewForm extends ConsumerWidget {
                 IconButton(
                   tooltip: '$star star${star == 1 ? '' : 's'}',
                   iconSize: 36,
-                  onPressed: form.isSubmitting
-                      ? null
-                      : () => notifier.setRating(star),
+                  onPressed: isLocked ? null : () => notifier.setRating(star),
                   icon: Icon(
                     star <= form.rating ? Icons.star : Icons.star_border,
                     color: Colors.amber,
@@ -153,7 +154,7 @@ class _ReviewForm extends ConsumerWidget {
           const SizedBox(height: 20),
           TextField(
             controller: commentController,
-            enabled: !form.isSubmitting,
+            enabled: !isLocked,
             maxLines: 3,
             maxLength: reviewCommentMaxLength,
             textCapitalization: TextCapitalization.sentences,
@@ -241,9 +242,8 @@ class _SubmitBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isSubmitting = ref.watch(
-      reviewFormProvider(bookingId).select((form) => form.isSubmitting),
-    );
+    final form = ref.watch(reviewFormProvider(bookingId));
+    final isSubmitting = form.isSubmitting;
 
     return SafeArea(
       child: Padding(
@@ -255,8 +255,12 @@ class _SubmitBar extends ConsumerWidget {
                   dimension: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.rate_review_outlined),
-          label: const Text('Submit Review'),
+              : Icon(
+                  form.needsRatingRetry
+                      ? Icons.refresh
+                      : Icons.rate_review_outlined,
+                ),
+          label: Text(form.needsRatingRetry ? 'Retry' : 'Submit Review'),
         ),
       ),
     );

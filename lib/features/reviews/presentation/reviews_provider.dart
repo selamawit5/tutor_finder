@@ -54,6 +54,7 @@ class ReviewFormState {
     this.ratingError,
     this.commentError,
     this.submitError,
+    this.savedReview,
   });
 
   /// 0 means no star chosen yet; otherwise 1–5.
@@ -62,20 +63,49 @@ class ReviewFormState {
   final String? ratingError;
   final String? commentError;
   final String? submitError;
+
+  /// Set when the review is stored but the tutor rating update failed.
+  /// The form is locked and submitting again only retries the rating step.
+  final Review? savedReview;
+
+  bool get needsRatingRetry => savedReview != null;
 }
 
+/// Submitting a review is two steps: store the review, then fold its rating
+/// into the tutor's average. To keep them consistent:
+/// - if step 2 fails, the stored review is kept and [submit] retries only
+///   step 2 (no duplicate-review error, nothing to re-enter);
+/// - if the user leaves before step 2 succeeds, the stored review is
+///   deleted, so there is never a review whose rating was not counted.
 class ReviewFormNotifier extends Notifier<ReviewFormState> {
   ReviewFormNotifier(this.bookingId);
 
   final String bookingId;
 
-  @override
-  ReviewFormState build() => const ReviewFormState();
+  /// Stored review whose rating has not been applied yet.
+  Review? _pendingReview;
 
-  void setRating(int rating) => state = ReviewFormState(
-    rating: rating.clamp(1, 5),
-    commentError: state.commentError,
-  );
+  @override
+  ReviewFormState build() {
+    final repository = ref.read(reviewRepositoryProvider);
+    ref.onDispose(() {
+      final pending = _pendingReview;
+      if (pending != null) {
+        repository.deleteReview(pending.id);
+      }
+    });
+    return const ReviewFormState();
+  }
+
+  void setRating(int rating) {
+    if (state.needsRatingRetry) {
+      return;
+    }
+    state = ReviewFormState(
+      rating: rating.clamp(1, 5),
+      commentError: state.commentError,
+    );
+  }
 
   void clearCommentError() {
     if (state.commentError != null) {
@@ -86,12 +116,52 @@ class ReviewFormNotifier extends Notifier<ReviewFormState> {
     }
   }
 
-  /// Validates and saves the review. Returns `true` on success; on failure
-  /// the error is put on the state for the screen to show.
+  /// Validates, saves the review and updates the tutor rating. Returns `true`
+  /// on success; on failure the error is put on the state for the screen.
   Future<bool> submit({
     required Booking booking,
     required String comment,
   }) async {
+    final review = _pendingReview ?? await _saveReview(booking, comment);
+    if (review == null) {
+      return false;
+    }
+    if (!ref.mounted) {
+      return false;
+    }
+    state = ReviewFormState(
+      rating: review.rating,
+      isSubmitting: true,
+      savedReview: review,
+    );
+
+    try {
+      await ref
+          .read(tutorsProvider.notifier)
+          .recordRating(review.tutorId, review.rating);
+    } catch (_) {
+      if (ref.mounted) {
+        state = ReviewFormState(
+          rating: review.rating,
+          savedReview: review,
+          submitError:
+              "Your review was saved, but the tutor's rating could not be "
+              'updated. Tap Retry to finish.',
+        );
+      }
+      return false;
+    }
+
+    _pendingReview = null;
+    if (ref.mounted) {
+      ref.invalidate(reviewsProvider(review.tutorId));
+      state = ReviewFormState(rating: review.rating);
+    }
+    return true;
+  }
+
+  /// Step 1: validate and store the review. Returns `null` on failure.
+  Future<Review?> _saveReview(Booking booking, String comment) async {
     final text = comment.trim();
     final ratingError = state.rating == 0
         ? 'Please choose a star rating.'
@@ -103,42 +173,45 @@ class ReviewFormNotifier extends Notifier<ReviewFormState> {
         ratingError: ratingError,
         commentError: commentError,
       );
-      return false;
+      return null;
     }
 
     final rating = state.rating;
+    final review = Review(
+      id: 'r${DateTime.now().microsecondsSinceEpoch}',
+      bookingId: booking.id,
+      reviewerId: booking.requestedById,
+      reviewerName: booking.studentName,
+      tutorId: booking.tutorId,
+      rating: rating,
+      comment: text,
+      createdAt: DateTime.now(),
+    );
+    final repository = ref.read(reviewRepositoryProvider);
     state = ReviewFormState(rating: rating, isSubmitting: true);
 
     String? submitError;
     try {
-      await ref
-          .read(reviewRepositoryProvider)
-          .addReview(
-            Review(
-              id: 'r${DateTime.now().microsecondsSinceEpoch}',
-              bookingId: booking.id,
-              reviewerId: booking.requestedById,
-              reviewerName: booking.studentName,
-              tutorId: booking.tutorId,
-              rating: rating,
-              comment: text,
-              createdAt: DateTime.now(),
-            ),
-          );
-      await ref
-          .read(tutorsProvider.notifier)
-          .recordRating(booking.tutorId, rating);
-      ref.invalidate(reviewsProvider(booking.tutorId));
+      await repository.addReview(review);
     } on DuplicateReviewException {
       submitError = 'You have already reviewed this session.';
     } catch (_) {
       submitError = 'Could not save your review. Please try again.';
     }
 
-    if (ref.mounted) {
-      state = ReviewFormState(rating: rating, submitError: submitError);
+    if (!ref.mounted) {
+      // The screen closed while saving: undo so nothing is left half-done.
+      if (submitError == null) {
+        await repository.deleteReview(review.id);
+      }
+      return null;
     }
-    return submitError == null;
+    if (submitError != null) {
+      state = ReviewFormState(rating: rating, submitError: submitError);
+      return null;
+    }
+    _pendingReview = review;
+    return review;
   }
 }
 

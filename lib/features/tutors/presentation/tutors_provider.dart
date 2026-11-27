@@ -26,20 +26,36 @@ class TutorsNotifier extends AsyncNotifier<List<TutorProfile>> {
   Future<List<TutorProfile>> build() =>
       ref.watch(tutorRepositoryProvider).getTutors();
 
-  /// Saves [profile] (used by Edit Tutor Profile) and refreshes the list.
+  /// Saves [profile] (used by Edit Tutor Profile) and updates the list.
+  ///
+  /// Nothing that can fail runs after the write, so a caller that sees an
+  /// error knows the profile was not saved and can safely retry.
   Future<void> updateProfile(TutorProfile profile) async {
-    await _repository.updateTutorProfile(profile);
-    final tutors = await _repository.getTutors();
-    if (ref.mounted) {
-      state = AsyncData(tutors);
+    final saved = await _repository.updateTutorProfile(profile);
+    if (!ref.mounted) {
+      return;
     }
+    final current = state.value;
+    if (current == null) {
+      ref.invalidateSelf();
+      return;
+    }
+    state = AsyncData([
+      for (final tutor in current) tutor.userId == saved.userId ? saved : tutor,
+    ]);
   }
 
   /// Folds a new 1–5 star review into the tutor's average and count.
+  ///
+  /// Throws an [ArgumentError] if [rating] is outside 1–5 and a [StateError]
+  /// if no tutor has [tutorId]. If this throws, the rating was not applied.
   Future<void> recordRating(String tutorId, int rating) async {
+    if (rating < 1 || rating > 5) {
+      throw ArgumentError.value(rating, 'rating', 'must be between 1 and 5');
+    }
     final tutor = await _repository.getTutorById(tutorId);
     if (tutor == null) {
-      return;
+      throw StateError('No tutor with id $tutorId');
     }
     final count = tutor.ratingCount + 1;
     final average = (tutor.ratingAverage * tutor.ratingCount + rating) / count;

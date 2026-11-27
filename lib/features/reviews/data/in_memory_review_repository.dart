@@ -28,4 +28,9 @@ class InMemoryReviewRepository implements ReviewRepository {
     _reviews.add(review);
     return review;
   }
+
+  @override
+  Future<void> deleteReview(String reviewId) async {
+    _reviews.removeWhere((review) => review.id == reviewId);
+  }
 }
