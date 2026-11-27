@@ -123,10 +123,12 @@ class _ReviewForm extends ConsumerWidget {
                   tooltip: '$star star${star == 1 ? '' : 's'}',
                   iconSize: 36,
                   onPressed: isLocked ? null : () => notifier.setRating(star),
-                  icon: Icon(
-                    star <= form.rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                  ),
+                  icon: star <= form.rating
+                      ? Icon(Icons.star, color: theme.colorScheme.primary)
+                      : Icon(
+                          Icons.star_border,
+                          color: theme.colorScheme.outline,
+                        ),
                 ),
             ],
           ),

@@ -140,28 +140,55 @@ final filteredTutorsProvider = Provider<List<TutorProfile>>((ref) {
 // AI suggestion
 // ---------------------------------------------------------------------------
 
-class AiSuggestionNotifier extends Notifier<AiSuggestionResult?> {
+/// The latest AI suggestion as an [AsyncValue]:
+/// - `AsyncData(null)`: nothing asked yet (or cleared)
+/// - `AsyncLoading`: a suggestion is being generated
+/// - `AsyncData(result)`: the suggestion to show
+/// - `AsyncError`: generating failed; [retry] asks again
+class AiSuggestionNotifier extends Notifier<AsyncValue<AiSuggestionResult?>> {
+  /// Bumped on every request and clear, so a slow, older request can never
+  /// overwrite a newer result or a clear.
+  int _requestId = 0;
+  String _lastProblem = '';
+
   @override
-  AiSuggestionResult? build() => null;
+  AsyncValue<AiSuggestionResult?> build() => const AsyncData(null);
 
   Future<void> suggest(String problem) async {
+    final requestId = ++_requestId;
     if (problem.trim().isEmpty) {
-      state = null;
+      state = const AsyncData(null);
       return;
     }
-    final tutors = await ref.read(tutorsProvider.future);
-    if (!ref.mounted) {
-      return;
+    _lastProblem = problem;
+    state = const AsyncLoading();
+
+    final result = await AsyncValue.guard(() async {
+      final tutors = await ref.read(tutorsProvider.future);
+      return ref
+          .read(aiSuggestionServiceProvider)
+          .suggest(
+            problem,
+            tutors: tutors,
+            subjects: ref.read(subjectsProvider),
+          );
+    });
+
+    if (ref.mounted && requestId == _requestId) {
+      state = result;
     }
-    state = ref
-        .read(aiSuggestionServiceProvider)
-        .suggest(problem, tutors: tutors, subjects: ref.read(subjectsProvider));
   }
 
-  void clear() => state = null;
+  /// Asks again with the last problem, e.g. after an error.
+  Future<void> retry() => suggest(_lastProblem);
+
+  void clear() {
+    _requestId++;
+    state = const AsyncData(null);
+  }
 }
 
 final aiSuggestionProvider =
-    NotifierProvider<AiSuggestionNotifier, AiSuggestionResult?>(
+    NotifierProvider<AiSuggestionNotifier, AsyncValue<AiSuggestionResult?>>(
       AiSuggestionNotifier.new,
     );

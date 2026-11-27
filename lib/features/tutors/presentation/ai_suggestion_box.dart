@@ -26,7 +26,8 @@ class _AiSuggestionBoxState extends ConsumerState<AiSuggestionBox> {
   }
 
   void _suggest() {
-    if (_problemController.text.trim().isEmpty) {
+    if (_problemController.text.trim().isEmpty ||
+        ref.read(aiSuggestionProvider).isLoading) {
       return;
     }
     FocusScope.of(context).unfocus();
@@ -40,7 +41,9 @@ class _AiSuggestionBoxState extends ConsumerState<AiSuggestionBox> {
 
   @override
   Widget build(BuildContext context) {
-    final result = ref.watch(aiSuggestionProvider);
+    final suggestion = ref.watch(aiSuggestionProvider);
+    final isLoading = suggestion.isLoading;
+    final result = suggestion.hasError ? null : suggestion.value;
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
 
@@ -88,7 +91,10 @@ class _AiSuggestionBoxState extends ConsumerState<AiSuggestionBox> {
                         hintText:
                             "Describe your problem (e.g., Newton's laws in "
                             'physics)',
-                        suffixIcon: value.text.isEmpty && result == null
+                        suffixIcon:
+                            value.text.isEmpty &&
+                                result == null &&
+                                !suggestion.hasError
                             ? null
                             : IconButton(
                                 tooltip: 'Clear',
@@ -99,15 +105,27 @@ class _AiSuggestionBoxState extends ConsumerState<AiSuggestionBox> {
                     ),
                     const SizedBox(height: 12),
                     FilledButton.icon(
-                      onPressed: hasText ? _suggest : null,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Get AI Suggestion'),
+                      onPressed: hasText && !isLoading ? _suggest : null,
+                      icon: isLoading
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.auto_awesome),
+                      label: Text(
+                        isLoading ? 'Finding tutors...' : 'Get AI Suggestion',
+                      ),
                     ),
                   ],
                 );
               },
             ),
-            if (result != null) ...[
+            if (suggestion.hasError && !isLoading) ...[
+              const SizedBox(height: 12),
+              _SuggestionError(
+                onRetry: () => ref.read(aiSuggestionProvider.notifier).retry(),
+              ),
+            ] else if (result != null && !isLoading) ...[
               const SizedBox(height: 16),
               const Divider(height: 1),
               const SizedBox(height: 16),
@@ -183,6 +201,47 @@ class _SuggestionResult extends StatelessWidget {
             ],
           ),
       ],
+    );
+  }
+}
+
+class _SuggestionError extends StatelessWidget {
+  const _SuggestionError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 20, color: colors.onErrorContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Could not get a suggestion. Please try again.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colors.onErrorContainer,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              foregroundColor: colors.onErrorContainer,
+            ),
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
     );
   }
 }
