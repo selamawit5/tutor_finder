@@ -6,11 +6,32 @@ import 'package:tutor_finder/features/tutors/domain/subject.dart';
 import 'package:tutor_finder/features/tutors/presentation/ai_suggestion_box.dart';
 import 'package:tutor_finder/features/tutors/presentation/tutors_provider.dart';
 
-class FindTutorsScreen extends ConsumerWidget {
+class FindTutorsScreen extends ConsumerStatefulWidget {
   const FindTutorsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FindTutorsScreen> createState() =>
+      _FindTutorsScreenState();
+}
+
+class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    ref.read(tutorFilterProvider.notifier).setSearchQuery('');
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tutorsAsync = ref.watch(tutorsProvider);
     final tutors = ref.watch(filteredTutorsProvider);
     final subjects = ref.watch(subjectsProvider);
@@ -39,9 +60,10 @@ class FindTutorsScreen extends ConsumerWidget {
 
           // Search
           TextField(
-            onChanged: (value) {
-              ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
-            },
+  controller: _searchController,
+  onChanged: (value) {
+    ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
+  },
             decoration: const InputDecoration(
               hintText: 'Search tutors or subjects...',
               prefixIcon: Icon(Icons.search),
@@ -162,8 +184,9 @@ class FindTutorsScreen extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
-                  ref.read(tutorFilterProvider.notifier).clear();
-                },
+  _searchController.clear();
+  ref.read(tutorFilterProvider.notifier).clear();
+},
                 icon: const Icon(Icons.filter_alt_off),
                 label: const Text('Clear filters'),
               ),
