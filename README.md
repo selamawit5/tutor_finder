@@ -35,12 +35,25 @@ the two in one place.
 
 ## Status
 
-We are at the proposal stage. The app is not built yet.
+Milestone 1 is complete: all 7 screens from the proposal are implemented and
+navigable via `go_router`, application state is managed in Riverpod providers
+with `freezed` models and in-memory repositories behind interfaces, and all
+unit and widget tests pass cleanly.
 
 ## Setup, architecture and screenshots
 
-We will add these as we build the app.
+### Architecture
+The project uses a feature-first layout:
+- `lib/core/` — shared seed data (`fake_seed_data.dart`), `go_router` setup (`app_router.dart`), Material 3 theme (`app_theme.dart`), and helpers.
+- `lib/features/{auth,tutors,bookings,reviews}/{domain,data,presentation}/` — `freezed` models and repository interfaces (`domain`), in-memory implementations (`data`), and Riverpod providers + screens (`presentation`).
 
-## Course
+### Run Locally
+```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze --fatal-infos
+flutter test
+flutter run
 
+Course
 Mobile Application Development, Flutter 3.47.7.
