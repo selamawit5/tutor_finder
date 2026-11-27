@@ -6,11 +6,27 @@ import 'package:tutor_finder/features/tutors/domain/subject.dart';
 import 'package:tutor_finder/features/tutors/presentation/ai_suggestion_box.dart';
 import 'package:tutor_finder/features/tutors/presentation/tutors_provider.dart';
 
-class FindTutorsScreen extends ConsumerWidget {
+class FindTutorsScreen extends ConsumerStatefulWidget {
   const FindTutorsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FindTutorsScreen> createState() => _FindTutorsScreenState();
+}
+
+class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
+  // Starts from the saved query so the box matches the list when coming back.
+  late final _searchController = TextEditingController(
+    text: ref.read(tutorFilterProvider).searchQuery,
+  );
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tutorsAsync = ref.watch(tutorsProvider);
     final tutors = ref.watch(filteredTutorsProvider);
     final subjects = ref.watch(subjectsProvider);
@@ -39,6 +55,7 @@ class FindTutorsScreen extends ConsumerWidget {
 
           // Search
           TextField(
+            controller: _searchController,
             onChanged: (value) {
               ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
             },
@@ -162,6 +179,7 @@ class FindTutorsScreen extends ConsumerWidget {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
+                  _searchController.clear();
                   ref.read(tutorFilterProvider.notifier).clear();
                 },
                 icon: const Icon(Icons.filter_alt_off),
