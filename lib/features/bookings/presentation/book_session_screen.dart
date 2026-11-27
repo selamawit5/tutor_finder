@@ -2,12 +2,58 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tutor_finder/core/data/fake_seed_data.dart';
+import 'package:tutor_finder/features/auth/presentation/auth_provider.dart';
 import 'package:tutor_finder/features/bookings/presentation/bookings_provider.dart';
 
 class BookSessionScreen extends ConsumerWidget {
   const BookSessionScreen({required this.tutorId, super.key});
 
   final String tutorId;
+
+  DateTime _parseTimeSlot(String slot) {
+    const weekdays = {
+      'Mon': DateTime.monday,
+      'Tue': DateTime.tuesday,
+      'Wed': DateTime.wednesday,
+      'Thu': DateTime.thursday,
+      'Fri': DateTime.friday,
+      'Sat': DateTime.saturday,
+      'Sun': DateTime.sunday,
+    };
+
+    final parts = slot.trim().split(' ');
+    final targetWeekday = parts.isNotEmpty ? weekdays[parts[0]] : null;
+    final timeParts = parts.length > 1 ? parts[1].split(':') : <String>[];
+    final hour = timeParts.isNotEmpty ? int.tryParse(timeParts[0]) ?? 9 : 9;
+    final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;
+
+    final now = DateTime.now();
+    if (targetWeekday == null) {
+      return DateTime(now.year, now.month, now.day + 1, hour, minute);
+    }
+
+    var daysUntil = (targetWeekday - now.weekday + 7) % 7;
+    if (daysUntil == 0) {
+      final todayCandidate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
+      if (!todayCandidate.isAfter(now)) {
+        daysUntil = 7;
+      }
+    }
+    final targetDate = now.add(Duration(days: daysUntil));
+    return DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      hour,
+      minute,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,7 +64,7 @@ class BookSessionScreen extends ConsumerWidget {
     final tutorSubjects = seedSubjects
         .where((s) => tutor.subjectIds.contains(s.id))
         .toList();
-    final currentUser = seedUsers.first;
+    final currentUser = ref.watch(authProvider) ?? seedUsers.first;
 
     final selection = ref.watch(bookSessionSelectionProvider);
     final selectedSubjectId =
@@ -94,6 +140,7 @@ class BookSessionScreen extends ConsumerWidget {
               onPressed: selectedSubjectId == null || selectedTimeSlot == null
                   ? null
                   : () async {
+                      final selectedStart = _parseTimeSlot(selectedTimeSlot);
                       await ref
                           .read(bookingsProvider.notifier)
                           .createBooking(
@@ -101,7 +148,7 @@ class BookSessionScreen extends ConsumerWidget {
                             studentName: currentUser.name,
                             tutorId: tutor.userId,
                             subjectId: selectedSubjectId,
-                            start: DateTime.now().add(const Duration(days: 1)),
+                            start: selectedStart,
                           );
                       ref.read(bookSessionSelectionProvider.notifier).reset();
                       if (!context.mounted) return;
