@@ -10,8 +10,7 @@ class FindTutorsScreen extends ConsumerStatefulWidget {
   const FindTutorsScreen({super.key});
 
   @override
-  ConsumerState<FindTutorsScreen> createState() =>
-      _FindTutorsScreenState();
+  ConsumerState<FindTutorsScreen> createState() => _FindTutorsScreenState();
 }
 
 class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
@@ -20,8 +19,8 @@ class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController();
-    ref.read(tutorFilterProvider.notifier).setSearchQuery('');
+    final initialQuery = ref.read(tutorFilterProvider).searchQuery;
+    _searchController = TextEditingController(text: initialQuery);
   }
 
   @override
@@ -60,10 +59,10 @@ class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
 
           // Search
           TextField(
-  controller: _searchController,
-  onChanged: (value) {
-    ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
-  },
+            controller: _searchController,
+            onChanged: (value) {
+              ref.read(tutorFilterProvider.notifier).setSearchQuery(value);
+            },
             decoration: const InputDecoration(
               hintText: 'Search tutors or subjects...',
               prefixIcon: Icon(Icons.search),
@@ -167,10 +166,13 @@ class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Available tutors',
-                style: Theme.of(context).textTheme.titleLarge,
+              Expanded(
+                child: Text(
+                  'Available tutors',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '${tutors.length} found',
                 style: Theme.of(context).textTheme.bodySmall,
@@ -184,9 +186,9 @@ class _FindTutorsScreenState extends ConsumerState<FindTutorsScreen> {
               alignment: Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
-  _searchController.clear();
-  ref.read(tutorFilterProvider.notifier).clear();
-},
+                  _searchController.clear();
+                  ref.read(tutorFilterProvider.notifier).clear();
+                },
                 icon: const Icon(Icons.filter_alt_off),
                 label: const Text('Clear filters'),
               ),
